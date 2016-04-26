@@ -1,10 +1,10 @@
-/*
-* Robot control version 1.0
-* Code by Michael Walsh
-* using the DFRobotShop Roverr V2.0 Base
-* Code Started on : Saturday, April 16th, 2016
-* I know nothing of the legal details regarding this code
-*/
+/************************************************************
+* Robot control version 1.0                                 *
+* Code by Michael Walsh                                     *
+* using the DFRobotShop Roverr V2.0 Base                    *
+* Code Started on : Saturday, April 16th, 2016              *
+* I know nothing of the legal details regarding this code   *
+************************************************************/
 
 //Load Dependant Libraries
 #include <IRremote.h>
@@ -17,7 +17,7 @@ const int lowSpeed = 30;
 //Variables used by the robot to keep track of shit
 int leftSpeed = 0;
 int rightSpeed = 0;
-int speedReference = 60;
+int speedReference = 100;
 
 //Establish Standard Pins for Motor Control
 int leftSpeedPin = 6;   //Left Motor Speed Control
@@ -28,9 +28,16 @@ int rightMotorPin = 7;   //Right Motor Direction Control
 //Establish Standard Pins for Sensor input
 int IRpin = 11;    // Establishes the Pin number for Infrared Input
 
+//Variables that manage the infrared receiver code functionality.
+unsigned lastCode = 0;
+int lastTime = 0;
+
 //Initialize Infrared Receiver
 IRrecv irrecv(IRpin);
 decode_results results;
+
+//Function Prototype for SetRatio because it doesn't like me
+void SetRatio(bool left, int turnFactor);
 
 void setup() {
   Serial.begin(9600);
@@ -39,11 +46,78 @@ void setup() {
 }
 
 void loop() {
+
     // This line checks if anything has been received and makes the code available to read.
     if(irrecv.decode(&results)){
-      Serial.println(results.value, HEX);
-
+      //Is this code a new one or a repeat?
+      int thisCode = results.value;
+      if(thisCode != lastCode){
+        //Serial.println(results.value);
+        lastCode = thisCode;
+        //Now we can interpret the code and carry out the behavior.
+        switch(results.value){
+            //Forward Motor Case
+            case 2774159535:
+              MoveForward();
+              Serial.println("ForwardCommandSent");
+              break;
+            //Reverse Motor Case
+            case 2774192175:
+              MoveReverse();
+              Serial.println("ReverseCommandSent");
+              break;
+            //Turn Left Signal (Pre-set turn)
+            case 2774172030:
+              SetRatio(true, 2);
+              JogForward();
+              Serial.println("Turn Left Command Sent");
+              break;
+            //Turn Right Signal (Pre-set turn)
+            case 2774139390:
+              SetRatio(false, 2);
+              JogForward();
+              Serial.println("Turn Right Command Sent");
+              break;
+            //Steering Left Command
+            case 635103765:
+              Serial.println("Steer Left Command");
+              break;
+            //Steering Right Command
+            case 635071125:
+              Serial.println("Steer Right Command");
+              break;
+            //Jog Forward Command
+            case 2774141175:
+              JogForward();
+              Serial.println("Jog Forward Command");
+              break;
+            //Jog Reverse Command
+            case 2774168205:
+              JogReverse();
+              Serial.println("Jog Backward Command");
+              break;
+            //Power Signal Command
+            case 2774153415:
+              Serial.println("Power Command");
+              break;                                    
+        }
+      
+      
+      }
       irrecv.resume(); //Receive the next value
+      lastTime = millis();
+    }else{
+      //If the timeout period has expired (95 milliseconds)
+      int codeTime = millis();
+      if ( (codeTime - lastTime) >= 95 && lastTime != 0){
+        //Issue a stop
+        Serial.println("---DBG--");
+        Serial.println(codeTime - lastTime);
+        Serial.println(lastTime);
+        Stop();
+        lastTime = 0;
+        lastCode = 0;
+      }
     }
   }
 
@@ -69,6 +143,12 @@ void SetMotorDirection(int motor = 2, bool reverse = 0){
       digitalWrite(leftMotorPin, reverse);
      break;
   }
+// Testing Code
+//This code is providing debugging information to me in the most hackish and unclassy way I can think of
+Serial.println(digitalRead(leftMotorPin));
+Serial.println(digitalRead(rightMotorPin));
+Serial.println(analogRead(leftSpeedPin));
+Serial.println(analogRead(rightSpeedPin));
   return;
 }
 
@@ -102,6 +182,12 @@ void SetSpeed( int motor = 2, int value = 0) {
       rightSpeed = scaledSpeed;
       break;
   }
+// Testing Code
+//This code is providing debugging information to me in the most hackish and unclassy way I can think of
+Serial.println(digitalRead(leftMotorPin));
+Serial.println(digitalRead(rightMotorPin));
+Serial.println(analogRead(leftSpeedPin));
+Serial.println(analogRead(rightSpeedPin));
 }
 
 //This is where the functions that govern the responses generated by the IR Remote
@@ -114,11 +200,23 @@ void SetSpeed( int motor = 2, int value = 0) {
 void MoveForward(){
     SetMotorDirection(2,false);
     SetSpeed(2, speedReference);
+// Testing Code
+//This code is providing debugging information to me in the most hackish and unclassy way I can think of
+Serial.println(digitalRead(leftMotorPin));
+Serial.println(digitalRead(rightMotorPin));
+Serial.println(analogRead(leftSpeedPin));
+Serial.println(analogRead(rightSpeedPin));
 }
 
 void MoveReverse(){
     SetMotorDirection(2,true);
     SetSpeed(2, speedReference);
+// Testing Code
+//This code is providing debugging information to me in the most hackish and unclassy way I can think of
+Serial.println(digitalRead(leftMotorPin));
+Serial.println(digitalRead(rightMotorPin));
+Serial.println(analogRead(leftSpeedPin));
+Serial.println(analogRead(rightSpeedPin));
 }
 
 // JogForward and JogReverse
@@ -158,13 +256,15 @@ void Stop(){
  *  turn factor, the sharper the turn will be. This function will cause the robot to turn
  */
 
-void SetRatio(bool left = true, int turnFactor = 2){
+void SetRatio(bool left, int turnFactor){
   int newSpeed;
   if ( left == true ){
     newSpeed = speedReference / turnFactor;
+    rightSpeed = speedReference;
     leftSpeed = newSpeed;
   }else if( left == false ){
     newSpeed = speedReference / turnFactor;
+    leftSpeed = speedReference;
     rightSpeed = newSpeed;
   }
 }
