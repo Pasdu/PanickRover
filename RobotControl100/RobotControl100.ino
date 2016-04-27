@@ -36,8 +36,10 @@ int lastTime = 0;
 IRrecv irrecv(IRpin);
 decode_results results;
 
-//Function Prototype for SetRatio because it doesn't like me
+//Function Prototypes because it doesn't like me
 void SetRatio(bool left, int turnFactor);
+void SetMotorDirection(int motor = 2, bool reverse = 0);
+void SetSpeed( int motor = 2, int value = 0);
 
 void setup() {
   Serial.begin(9600);
@@ -68,14 +70,16 @@ void loop() {
               break;
          //Turn Left Signal (Pre-set turn)
             case 2774172030:
-              SetRatio(true, 1.3);
-              JogForward();
+              SetMotorDirection(0,1);
+              SetMotorDirection(1,0);
+              SetSpeed(2,speedReference);
               Serial.println("Turn Left Command Sent");
               break;
          //Turn Right Signal (Pre-set turn)
             case 2774139390:
-              SetRatio(false, 1.3);
-              JogForward();
+              SetMotorDirection(0,0);
+              SetMotorDirection(1,1);
+              SetSpeed(2,speedReference);
               Serial.println("Turn Right Command Sent");
               break;
          //Steering Left Command
@@ -128,7 +132,7 @@ void loop() {
  * false means that the motor will spin forwards (relative to the bot)
  * true means that the motor will spin in referse (relative to the box)
  */
-void SetMotorDirection(int motor = 2, bool reverse = 0){
+void SetMotorDirection(int motor, bool reverse){
   switch(motor){
      case 0:
       digitalWrite(leftMotorPin, reverse);
@@ -152,7 +156,7 @@ void SetMotorDirection(int motor = 2, bool reverse = 0){
  * The value parameter is a 0-100 value that scales to the minimum and maximum outputs to
  * the motor (0-255), setting this to 0 will cause the motor to not turn and 100 to turn at full speed.
  */
-void SetSpeed( int motor = 2, int value = 0) {
+void SetSpeed( int motor, int value) {
   //Turns the 0-100% value given for speed into a 0 to 255 scaled value.
   int scaledSpeed = map(value, 0,100,0,255);
 
