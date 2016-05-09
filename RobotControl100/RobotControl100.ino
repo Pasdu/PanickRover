@@ -18,6 +18,7 @@ const int lowSpeed = 30;
 int leftSpeed = 0;
 int rightSpeed = 0;
 int speedReference = 100;
+int turnState = 0;
 
 //Establish Standard Pins for Motor Control
 int leftSpeedPin = 6;   //Left Motor Speed Control
@@ -37,7 +38,7 @@ IRrecv irrecv(IRpin);
 decode_results results;
 
 //Function Prototypes because it doesn't like me
-void SetRatio(bool left, int turnFactor);
+void SetRatio(int turnFactor);
 void SetMotorDirection(int motor = 2, bool reverse = 0);
 void SetSpeed( int motor = 2, int value = 0);
 
@@ -84,10 +85,18 @@ void loop() {
               break;
          //Steering Left Command
             case 635103765:
+              if(turnState >= -10){
+                turnState -= 1;
+                SetRatio(turnState);
+              }
               Serial.println("Steer Left Command");
               break;
          //Steering Right Command
             case 635071125:
+              if(turnState <= 10){
+                turnState += 1;
+                SetRatio(turnState);
+              }
               Serial.println("Steer Right Command");
               break;
         //Jog Forward Command
@@ -113,7 +122,7 @@ void loop() {
     }else{
       //If the timeout period has expired (95 milliseconds)
       int codeTime = millis();
-      if ( (codeTime - lastTime) >= 200 && lastTime != 0){
+      if ( (codeTime - lastTime) >= 135 && lastTime != 0){
         //Issue a stop
         Serial.println("Stop");
         Stop();
@@ -234,17 +243,31 @@ void Stop(){
  *  turn factor, the sharper the turn will be. This function will cause the robot to turn
  */
 
-void SetRatio(bool left, int turnFactor){
-  int newSpeed;
-  if ( left == true ){
-    newSpeed = speedReference / turnFactor;
+void SetRatio(int turnFactor){
+// Handling for invalid values for turnfactor.
+switch(turnFactor){
+    case 0:
+      leftSpeed = speedReference;
+      rightSpeed = speedReference;
+      break;
+    case 1:
+      turnFactor = 2;
+      break;
+    case -1:
+      turnFactor = -2;
+      break;
+}
+  float TF = abs(turnFactor);
+  float slow = 75 + ((1/TF)*25);
+  if(turnFactor > 0){
     rightSpeed = speedReference;
-    leftSpeed = newSpeed;
-  }else if( left == false ){
-    newSpeed = speedReference / turnFactor;
+    leftSpeed = slow;
+  }else{
+    rightSpeed = slow;
     leftSpeed = speedReference;
-    rightSpeed = newSpeed;
   }
+  Serial.println(leftSpeed);
+  Serial.println(rightSpeed);
 }
 
 
